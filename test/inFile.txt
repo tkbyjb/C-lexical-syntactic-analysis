@@ -1,0 +1,245 @@
+   ///aa//
+/***
+bb*/
+typedef struct Book{
+    char register_num[30];        //登记号(为一本书的唯一编号)
+    char batch[30];                   //批次号(买书入库的时间批次信息)
+    char seek_num[30];            //索书号(同一种书放置的位置信息)
+    int frequency;                    //一本书总出借次数
+    char name[40];                  //书名
+    char author[30];                //作者
+    char publisher[30];            //出版社
+    char isbn[30];                   //ISBN
+    float price;                       //定价(默认人民币)
+    STATUS status;                //在借状态
+    LENDER *lender;             //若状态为借出,须写入,若为在馆,默认为NULL
+    struct Book *next;
+}BOOK;
+typedef struct Node{            //查找功能需要的符合条件的链表的节点类型
+    BOOK *book_p;
+    struct Node *next;
+}NODE;
+int main( ){
+    importBook( );
+    while(1){
+        showList( );
+        int choose = 0;
+        scanf("%d",&choose);
+        fflush(stdin);
+        switch(choose){
+            case 1:{    addBook( );break;}
+            case 2:{    delBook( );break;}
+            case 3:{    modifyBook();break;}
+            case 4:{    findBook();break;}
+            case 5:{    stats( );break;}
+            case 6:{    system("cls");  break;  }
+            case 7:{
+                printf("确定删除输入1,取消删除输入-1\n");   for(int i=0;i<40;i+=1){printf("%c",'~');}   printf("\n");
+                int m;
+                if( inputInt(&m , "选择")==0){  break; }
+                if(m==1){clearAll( );printf("初始化完成\n");}
+                break;}
+            case -1:{     return 1;    }
+            default:{   printf("提示!!! 没有这个选项\n");  }
+        }
+    }
+    return 1;
+}
+/*
+清除所有
+*/
+void clearAll( ){
+    BOOK*p=head->next;
+    BOOK*p2;
+    while(p!=NULL){
+        p2=p;
+        p=p->next;
+        free(p2);
+    }
+    head->next=NULL;
+    FILE *data=fopen("DATA.txt","w");
+    fclose(data);
+}
+void showList( ){
+    printf("\n");
+    for(int i=0;i<85;i+=1){printf("~");}
+    printf("\n");
+    printf("  1:添加    2:删除    3:修改    4:查找    5:统计  |||  6:清屏    7:初始化    -1:关闭 \n\n*想退出已选择的功能,在可输入时输入-1即可.\n*中途退出添加不会保留正在录入的书\n");
+    printf("*未填写的项默认值为none或-1\n");
+    printf("\n");
+    for(int i=0;i<85;i+=1){printf("~");}
+    printf("\n");
+    printf("选择>>>");
+}
+int modifyBook(  ){
+    showList2( );
+    printf("提示!!! 当前正在进行筛选:\n");
+    for(int i=0;i<40;i+=1){printf("%c",'~');}   printf("\n");
+//多重属性筛选,每种属性只能选一次,否则得到结果为最后一次的输入,只支持完全相同匹配
+    NODE *head2=(NODE *)malloc( sizeof(NODE) );
+    head2->next=NULL;
+    BOOK *p=head->next;
+    while(p){
+        NODE *p2=(NODE *)malloc( sizeof(NODE) );
+        head2->book_p=p;
+        p2->next=head2;
+        head2=p2;
+        p=p->next;
+    }
+
+    //排除第一次输入13的情况
+    int o;
+    char str2[50];
+    back2:
+    if( inputInt( &o , "选择" )==0){ clearAllNode( head2 ); return 0; }
+    if( checkChoose( o , 13)==0){  goto back2; }
+    if(o==13){return 0;  }
+    if( inputStr(  str2 , attribute_chinese[o-1] )==0  ){ clearAllNode( head2 ); return 0; }
+    head2=exactFind( head2 , o , str2 );
+    while(1){               //循环筛选
+        int n;
+        char str[50];
+        if( inputInt( &n , "选择" )==0){ clearAllNode( head2 ); return 0; }
+       if( checkChoose( n , 13)==0){  continue; }
+        if(n==13){break; }
+
+        if( inputStr(  str , attribute_chinese[n-1] )==0  ){ clearAllNode( head2 ); return 0; }
+        head2=exactFind( head2 , n , str );
+    }
+     if(head2->next==NULL){printf("提示!!! 没有找到\n");  return 0;}
+    showLine();
+    NODE*pp=head2->next;
+    while(pp){
+        showBook(pp->book_p);
+        pp=pp->next;
+    }
+/////////////////////////选择属性修改//////////////////////////////
+    showList2( );
+    printf("提示!!! 当前正在进行进行写入新属性,选项13在此处作废:,退出统一输入-1\n");
+    for(int i=0;i<40;i+=1){printf("%c",'~');}   printf("\n");
+    while(1){
+        int m;
+        char str3[50];
+        pic:
+       if( inputInt( &m , "选择")==0){ clearAllNode( head2 ); return 0; }
+       if( checkChoose( m , 13)==0){  continue ; }
+       if(m==1&&head2->next->next!=NULL){printf("提示!!! 登记号不能批量修改\n");goto pic; }
+       a1:
+        if( inputStr(  str3 , attribute_chinese[m-1] )==0  ){ clearAllNode( head2 ); return 0; }
+        if(m==1){  if(checkRegister_num( str3 )==0){    goto a1;    } }
+        modifyTxt( head2 );
+        modifyMemory( m , head2 , str3);        //写入内存
+        modifyTxt2( head2);         //再写入新文档
+        printf("修改成功\n");
+    }
+    return 1;
+}
+void modifyMemory( int m , NODE*h,char *str ){
+    NODE*p=h->next;
+    while(p){
+        switch(m){
+            case 1:{ strcpy( p->book_p->register_num , str); break; }
+            case 2:{  strcpy( p->book_p->batch , str);  break; }
+            case 3:{ strcpy( p->book_p->seek_num , str);   break; }
+            case 4:{  p->book_p->frequency=atoi(str); break; }
+            case 5:{  strcpy( p->book_p->name , str);  break; }
+            case 6:{ strcpy( p->book_p->author , str);   break; }
+            case 7:{ strcpy( p->book_p->publisher , str);   break; }
+            case 8:{  strcpy( p->book_p->isbn , str);  break; }
+            case 9:{  p->book_p->price=atof(str);  break; }
+            case 10:{
+                p->book_p->status=atoi(str);
+                if( p->book_p->status==1 ){
+                    inputStr( p->book_p->lender->time , attribute_chinese[10] ) ;
+                    inputStr( p->book_p->lender->id , attribute_chinese[11] ) ;
+                }
+                break; }
+            case 11:{
+                 if( p->book_p->status==1 ){  strcpy( p->book_p->lender->time , str);}
+                 else{printf("提示!!! 状态为在馆\n");}  break; }
+            case 12:{
+                 if( p->book_p->status==1 ){  strcpy( p->book_p->lender->id , str);  }
+                  else{printf("提示!!! 状态为在馆\n");}  break; }
+            default:{ printf("没有此选项\n"); }
+        }
+        p=p->next;
+    }
+}
+
+
+void modifyTxt( NODE *h ) {
+        FILE *data=fopen("DATA.txt","a+");
+        FILE *data2=fopen("DATA2.txt","w");
+        printf("修改文档中......\n");
+        fseek(data , 0L , 0);
+        char str[500];
+        while( fgets( str,500,data) != NULL ){
+                    if(str[0]=='\n'){ continue; }
+                    char s[50];
+                    int i=0;
+                    for( ; str[i]!=MARK;i+=1){
+                        s[i]=str[i];
+                        }
+                    s[i]='\0';
+
+                    NODE *p=h->next;
+                    int u=1;
+                    while(p){
+                        if( strcmp( p->book_p->register_num , s)==0){ u=0; break; }
+                        p=p->next;
+                    }
+                    if(u==1){   fputs( str , data2 );  }
+        }
+        fclose(data);
+        fclose(data2);
+        rename(RODE2, RODE3);
+        rename(RODE1, RODE2);
+        rename(RODE3  , RODE1 );
+}
+void modifyTxt2( NODE *h){
+        FILE *data=fopen("DATA.txt","a+");
+        NODE*p2=h->next;
+        while(p2){
+            writeTxt(p2->book_p , data );
+            p2=p2->next;
+        }
+        fclose(data);
+}
+
+NODE * exactFind( NODE *head2 , int n , char *str  ){       //和partFind函数差不多,为了方便,还是分开
+    NODE *head3=(NODE *)malloc( sizeof(NODE) );
+    head3->next=NULL;
+    NODE *p2=head2->next;
+    while(p2){
+         int m=0;         //将head2链表的符合条件的写入新的链表,并删除head2链表
+        switch(n){
+                case 1:{ if(strcmp( p2->book_p->register_num , str )==0){ m=1;  } break; }
+                case 2:{ if(strcmp( p2->book_p->batch , str )==0){ m=1;  } break; }
+                case 3:{if(strcmp( p2->book_p->seek_num , str )==0){ m=1;  }  break; }
+                case 4:{  int i=atoi(str); if(i==p2->book_p->frequency){m==1; } break; }
+                case 5:{if(strcmp( p2->book_p->name , str )==0){ m=1;  } break; }
+                case 6:{ if(strcmp( p2->book_p->author , str )==0){ m=1;  }  break; }
+                case 7:{ if(strcmp( p2->book_p->publisher , str )==0){ m=1;  }  break; }
+                case 8:{ if(strcmp( p2->book_p->isbn , str )==0){ m=1;  } break; }
+                case 9:{    float i=atof(str); if( ( i-p2->book_p->price) <1.0 || ( i-p2->book_p->price) >-1.0){m==1; }       break; }
+                case 10:{   int i=atoi(str); if(i==p2->book_p->status ){m==1; }         break; }
+                case 11:{ if(strcmp( p2->book_p->lender->time , str )==0){ m=1;  } break; }
+                case 12:{ if(strcmp( p2->book_p->lender->id , str )==0){ m=1;  } break; }
+        }
+        if(m==1){
+            NODE *p3=(NODE *)malloc( sizeof(NODE) );
+            p3->next=head3;
+            head3->book_p=p2->book_p;
+            head3=p3;
+        }
+        p2=p2->next;
+    }
+    while(head2){           //释放前一个链表的占用内存
+        p2=head2;
+        head2=head2->next;
+        free(p2);
+    }
+    return head3;
+}
+
+
