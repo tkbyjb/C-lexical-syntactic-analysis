@@ -251,24 +251,28 @@ public class LexC {
 				String temp2=word.substring(0,2);
 				if(temp2.equals("/*")) {//  /**/×¢ÊÍ
 					if(word.substring(word.length()-2,word.length()).equals("*/")) {
+						word="";
+						/*ºöÂÔ×¢ÊÍ
 						try {
 							out.write(word+"\t<"+"×¢ÊÍ"+" : "+type.get("×¢ÊÍ")+">	"+lineNum+"\n");
 							word="";
 						}
 						catch(IOException e){
 							e.getStackTrace();
-						}
+						}*/
 					}
 				}
 				else if(temp2.equals("//")) { // //×¢ÊÍ
 					if(now=='\n') { 
+						word="";
+						/*ºöÂÔ×¢ÊÍ
 						try {
 							out.write(word.substring(0,word.length()-1)+"\t<"+"×¢ÊÍ"+" : "+type.get("×¢ÊÍ")+">	"+lineNum+"\n");
 							word="";
 						}
 						catch(IOException e){
 							e.getStackTrace();
-						}
+						}*/
 					}
 				}
 				else { //1¸ö×Ö·ûµÄÔËËã·û
