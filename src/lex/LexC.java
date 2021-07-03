@@ -5,288 +5,319 @@ import java.util.Map;
 import java.util.HashMap;
 
 public class LexC {
-	private static Map<String,Integer>  type = new HashMap<>();
-	static{
-		type.put("±êÊ¶·û", 1);
-		type.put("auto",2); 	type.put(	"unsigned",	9);	type.put("do",	16);		type.put(	"const",23);	type.put("for",	30);
-		type.put("int",	3);		type.put("extern",	10);	type.put(	"goto",	17	);	type.put("char",	24);
-		type.put("break",	31);
-		type.put("float",	4);	type.put("volatile" ,11);	type.put("if"	,18);		type.put("typedef"	,25);	type.put("case"	,32);
-		type.put("double",	5);	type.put("while"	,12);	type.put("else"	,19);		type.put("sizeof"	,26);	type.put("enum"	,33);
-		type.put("short",	6);	type.put("switch"	,13);	type.put("return"	,20);	type.put("static"	,27	);
-		type.put("long",	7);	type.put("continue"	,14);	type.put("void"	,21);		type.put("default"	,28	);	
-		type.put("signed",	8);	type.put("register"	,15);	type.put("struct"	,22);	type.put("union"	,29	);	
-		type.put("{",	34);	type.put("("	,36);		type.put("["	,38);		type.put(";"	,40);		type.put(":"	,42);	type.put("."	,74);
-		type.put("}",	35);	type.put(")"	,37);		type.put("]"	,39);		type.put(",",41);			type.put("?"	,43);	type.put("->"	,75);
-		type.put("+",	44);	type.put("-"	,50);		type.put("*"	,56);		type.put("/"	,60);		type.put("%"	,64);	type.put("!"	,68);
-		type.put("++"	,45);	type.put("--"	,51);		type.put("*="	,57);		type.put("/="	,61);		type.put("%="	,65);	type.put("!="	,69);
-		type.put("+="	,46);	type.put("-="	,52	);							
-		type.put(">"	,47);	type.put("<"	,53);		type.put("&"	,58);		type.put("|"	,62);		type.put("="	,66	);
-		type.put(">>"	,48);	type.put("<<"	,54);		type.put("&&"	,59);		type.put("||"	,63);		type.put("=="	,67	);
-		type.put(">="	,49);	type.put("<="	,55	);							
-		type.put("ÕûÊı"	,70);	type.put("¸¡µãÊı",	71);	type.put("×Ö·û"	,72);		type.put("×Ö·û´®"	,73);
-		type.put("×¢ÊÍ"	,76	);
-	}
-	private static FileReader in; 
-	private static FileWriter out; 
-	private static int nowInt; 			//µ±Ç°×Ö·û¶ÔÓ¦µÄÊıÖµ
-	private static char now; 			//µ±Ç°×Ö·û
-	private static String word=""; 		//µ¥´Ê
-	private static int lineNum=1;//µ±Ç°µ¥´ÊËùÔÚĞĞÊı
-	/*
-	 * ÔİÊ±ÓĞ¸öÎÊÌâ:Èô×îºóÒ»ĞĞÎª×¢ÊÍÇÒÃ»ÓĞ»»ĞĞ½«ÎŞ·¨Ê¶±ğ
-	 */
-	public static void lex(File inFile,File outFile) {
-		try {
-			LexC.in = new FileReader(inFile);
-			LexC.out = new FileWriter(outFile);
-			char first;
-			while((nowInt=in.read()) != -1) {
-				now=(char)nowInt;
-				if(now=='\n')lineNum+=1;
-				word+=now;
-				int i;
-				for( i=0;i<word.length();i++) {//È¥µôwordÍ·²¿µÄ¿Õ¸ñ
-					if(word.charAt(i)!=' '&&word.charAt(i)!='\n'&&word.charAt(i)!='\t'&&word.charAt(i)!='\r') {
-						break;
-					}
-				}
-				word=word.substring(i);
-				if(word.length()==0) {
-					continue;
-				}
-				
-				//System.out.println(now+"	"+word.length());
-				//System.out.println("$$$$$"+word+"$$$$$$");
-				
-				first=word.charAt(0);
-				if(first == '_' || Character.isLetter(first)) { //±êÊ¶·û
-					getIdentifier();
-				}
-				else if(Character.isDigit(first)) {//ÕûÊı,¸¡µãÊı
-					getIntOrFloat();
-				}
-				else if(first=='\'') { //×Ö·û
-					getChar();
-				}
-				else if(first=='"') { //×Ö·û´®
-					getString();
-				}
-				else if(type.get(Character.toString(first))!=null) { //·Ö½ç·û,ÔËËã·û,×¢ÊÍ
-					getSeparatorOrOperatorOrAnnotation();
-				}
-				else {
-					throw new Exception(word+" ²»¿ÉÊ¶±ğ\n");
-				}
-			}
-			in.close();
-			out.close();
-			System.out.println("´Ê·¨·ÖÎöÍê³É");
-		}
-		catch (FileNotFoundException e) {
-			e.printStackTrace();
-			
-		}
-		catch (IOException e) {
-			e.printStackTrace();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-		}
-		finally {
-			try {
-				in.close();
-				out.close();
-			}
-			catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-	
-	
-	private static void getIdentifier() throws Exception{ //±êÊ¶·û»ò¹Ø¼ü×ÖÅĞ¶Ï
-		if(Character.isDigit(now) || now == '_' || Character.isLetter(now)) {
-			return; //¼ÌĞø¶ÁÈ¡ÏÂÒ»¸ö×Ö·û
-		}
-		else if(type.get(Character.toString(now))!=null || now==' '||now=='\n'||now=='\r'||now=='\t'){ 
-			String temp=word.substring(0,word.length()-1);
-			Integer value = type.get(temp);
-			if(value != null) { //¹Ø¼ü×Ö
-				try {
-					out.write(temp+"\t<"+temp+" : "+value+">	"+lineNum+"\n");
-					word=""+now; 
-				}
-				catch(IOException e){
-					e.getStackTrace();
-				}
-			}
-			else { //±êÊ¶·û
-				try {
-					out.write(temp+"\t<"+"±êÊ¶·û"+" : "+type.get("±êÊ¶·û")+">	"+lineNum+"\n");
-					word=""+now; 
-				}
-				catch(IOException e){
-					e.getStackTrace();
-				}
-			}
-		}
-		else {
-			throw new Exception(word+"±êÊ¶·û´íÎó");
-		}
-	}
-	
-	
-	private static void getIntOrFloat() throws Exception{ //ÕûÊı»ò¸¡µãÊı
-		if(Character.isDigit(now) || now=='e' || now=='.' || now=='E') {//ÕâÀïÄ¬ÈÏÁË5.ÕâÖÖ¸¡µãÊıĞ´·¨ÊÇÕıÈ·µÄ,.5ÕâÖÖÊÇ´íÎóµÄ
-			return;
-		}
-		else if(type.get(Character.toString(now))!=null || now==' '||now=='\n'||now=='\r'||now=='f'||now=='F'||now=='l'||now=='L'){
-			if(word.indexOf(".")==-1  && word.indexOf("f")==-1 && word.indexOf("F")==-1) {//ÕûÊı
-				String temp=word.substring(0,word.length()-1);
-				try {
-					out.write(temp+"\t<"+"ÕûÊı"+" : "+type.get("ÕûÊı")+">	"+lineNum+"\n");
-					word=""+now;
-				}
-				catch(IOException e){
-					e.getStackTrace();
-				}
-			}
-			else { //¸¡µãÊı
-				if(word.charAt(0)!='e' && word.charAt(word.length()-1)!='e' && word.charAt(0)!='E' && word.charAt(word.length()-1)!='E') {//ÅĞ¶ÏÊÇ·ñÓĞe,EÔÚÁ½¶ËµÄ´íÎóĞ´·¨
-					if(now=='f' || now=='F') {
-						try {
-							out.write(word+"\t<"+word+" : "+type.get("¸¡µãÊı")+">	"+lineNum+"\n");
-							word="";
-						}
-						catch(IOException e){
-							e.getStackTrace();
-						}
-					}
-					else {
-						String temp=word.substring(0,word.length()-1);
-						try {
-							out.write(temp+"\t<"+word+" : "+type.get("¸¡µãÊı")+">	 "+lineNum+"\n");
-							word=""+now;
-						}
-						catch(IOException e){
-							e.getStackTrace();
-						}	
-					}
-				}
-			}
-		}
-		else {
-			throw new Exception(word+"ÕûÊı»ò¸¡µãÊı´íÎó");
-		}
-	}
-	
-	private static void getChar() throws Exception{ //×Ö·û
-		if(now=='\'') {//µ¥¸ö×Ö·ûtype.get(Character.toString(now))!=null || now==' '||now=='\n'||now=='\r'
-			if(word.length()==3) {
-				try {
-					out.write(word+"\t<"+"×Ö·û"+" : "+type.get("×Ö·û")+">	"+lineNum+"\n");
-					word="";
-					return;
-				}
-				catch(IOException e){
-					e.getStackTrace();
-				}
-			}
-			else if(word.length()==4 ) {
-				if(word.charAt(1)!='\\') {
-					throw new Exception(word+"×Ö·û´íÎó");
-				}		
-				try {
-					out.write(word+"\t<"+"×Ö·û"+" : "+type.get("×Ö·û")+">	"+lineNum+"\n");
-					word="";
-					return;
-				}
-				catch(IOException e){
-					e.getStackTrace();
-				}
-			}
-		}
-		if(word.length()>4) {
-			throw new Exception(word+"×Ö·û´íÎó");
-		}
-	}
-	
-	private static void getString() {//×Ö·û´®
-		if(now=='"' && word.length()>1) {
-			try {
-				out.write(word+"\t<"+"×Ö·û´®"+" : "+type.get("×Ö·û´®")+">	"+lineNum+"\n");
-				word="";
-			}
-			catch(IOException e){
-				e.getStackTrace();
-			}
-		}
-	}
-	
-	private static void getSeparatorOrOperatorOrAnnotation() throws Exception{//ÔËËã·û,·Ö½ç·û,×¢ÊÍ
-		if("{}[]();:.?,".indexOf(word.charAt(0))!=-1) { //²»º¬->µÄ·Ö½ç·û,->ºÍÔËËã·ûÒ»ÆğÅĞ¶Ï
-			try {
-				out.write(word.charAt(0)+"\t<"+word.charAt(0)+" : "+type.get(Character.toString(word.charAt(0)))+">	"+lineNum+"\n");
-				word=word.substring(1);
-				return;
-			}
-			catch(IOException e){
-				e.getStackTrace();
-			}
-		}
-		else {
-			if(word.length()<2)return; 
-			Integer value=type.get(word);
-			if(value!=null) { //2¸ö×Ö·ûµÄÔËËã·û	
-				try {
-					out.write(word+"\t<"+word+" : "+value+">	"+lineNum+"\n");
-					word="";
-				}
-				catch(IOException e){
-					e.getStackTrace();
-				}
-			}
-			else {
-				String temp2=word.substring(0,2);
-				if(temp2.equals("/*")) {//  /**/×¢ÊÍ
-					if(word.substring(word.length()-2,word.length()).equals("*/")) {
-						word="";
-						/*ºöÂÔ×¢ÊÍ
-						try {
-							out.write(word+"\t<"+"×¢ÊÍ"+" : "+type.get("×¢ÊÍ")+">	"+lineNum+"\n");
-							word="";
-						}
-						catch(IOException e){
-							e.getStackTrace();
-						}*/
-					}
-				}
-				else if(temp2.equals("//")) { // //×¢ÊÍ
-					if(now=='\n') { 
-						word="";
-						/*ºöÂÔ×¢ÊÍ
-						try {
-							out.write(word.substring(0,word.length()-1)+"\t<"+"×¢ÊÍ"+" : "+type.get("×¢ÊÍ")+">	"+lineNum+"\n");
-							word="";
-						}
-						catch(IOException e){
-							e.getStackTrace();
-						}*/
-					}
-				}
-				else { //1¸ö×Ö·ûµÄÔËËã·û
-					String temp=word.substring(0,word.length()-1);
-					try {
-						out.write(temp+"\t<"+temp+" : "+type.get(temp)+">	"+lineNum+"\n");
-						word=""+now;
-					}
-					catch(IOException e){
-						e.getStackTrace();
-					}	
-				}	
-			}
-		}
-	}
+    private static Map<String, Integer> type = new HashMap<>();
 
+    static {
+        type.put("æ ‡è¯†ç¬¦", 1);
+        type.put("auto", 2);
+        type.put("unsigned", 9);
+        type.put("do", 16);
+        type.put("const", 23);
+        type.put("for", 30);
+        type.put("int", 3);
+        type.put("extern", 10);
+        type.put("goto", 17);
+        type.put("char", 24);
+        type.put("break", 31);
+        type.put("float", 4);
+        type.put("volatile", 11);
+        type.put("if", 18);
+        type.put("typedef", 25);
+        type.put("case", 32);
+        type.put("double", 5);
+        type.put("while", 12);
+        type.put("else", 19);
+        type.put("sizeof", 26);
+        type.put("enum", 33);
+        type.put("short", 6);
+        type.put("switch", 13);
+        type.put("return", 20);
+        type.put("static", 27);
+        type.put("long", 7);
+        type.put("continue", 14);
+        type.put("void", 21);
+        type.put("default", 28);
+        type.put("signed", 8);
+        type.put("register", 15);
+        type.put("struct", 22);
+        type.put("union", 29);
+        type.put("{", 34);
+        type.put("(", 36);
+        type.put("[", 38);
+        type.put(";", 40);
+        type.put(":", 42);
+        type.put(".", 74);
+        type.put("}", 35);
+        type.put(")", 37);
+        type.put("]", 39);
+        type.put(",", 41);
+        type.put("?", 43);
+        type.put("->", 75);
+        type.put("+", 44);
+        type.put("-", 50);
+        type.put("*", 56);
+        type.put("/", 60);
+        type.put("%", 64);
+        type.put("!", 68);
+        type.put("++", 45);
+        type.put("--", 51);
+        type.put("*=", 57);
+        type.put("/=", 61);
+        type.put("%=", 65);
+        type.put("!=", 69);
+        type.put("+=", 46);
+        type.put("-=", 52);
+        type.put(">", 47);
+        type.put("<", 53);
+        type.put("&", 58);
+        type.put("|", 62);
+        type.put("=", 66);
+        type.put(">>", 48);
+        type.put("<<", 54);
+        type.put("&&", 59);
+        type.put("||", 63);
+        type.put("==", 67);
+        type.put(">=", 49);
+        type.put("<=", 55);
+        type.put("æ•´æ•°", 70);
+        type.put("æµ®ç‚¹æ•°", 71);
+        type.put("å­—ç¬¦", 72);
+        type.put("å­—ç¬¦ä¸²", 73);
+        type.put("æ³¨é‡Š", 76);
+    }
+
+    private static FileReader in;
+    private static FileWriter out;
+    private static int nowInt;            //å½“å‰å­—ç¬¦å¯¹åº”çš„æ•°å€¼
+    private static char now;            //å½“å‰å­—ç¬¦
+    private static String word = "";        //å•è¯
+    private static int lineNum = 1;//å½“å‰å•è¯æ‰€åœ¨è¡Œæ•°
+
+    /*
+     * æš‚æ—¶æœ‰ä¸ªé—®é¢˜:è‹¥æœ€åä¸€è¡Œä¸ºæ³¨é‡Šä¸”æ²¡æœ‰æ¢è¡Œå°†æ— æ³•è¯†åˆ«
+     * è¾“å‡ºé”™è¯¯ä¿¡æ¯å¯ä»¥è·å–åˆ°è¡Œæ•°,é€šè¿‡lineNum
+     */
+    public static void lex(File inFile, File outFile) {
+        try {
+            LexC.in = new FileReader(inFile);
+            LexC.out = new FileWriter(outFile);
+            char first;
+            while ((nowInt = in.read()) != -1 || word.length()>0 ) {
+                if(nowInt!=-1){
+                    now = (char) nowInt;
+                    if (now == '\n') lineNum += 1;
+                    word += now;
+                }
+                int i;
+                for (i = 0; i < word.length(); i++) {//å»æ‰wordå¤´éƒ¨çš„ç©ºæ ¼
+                    if (word.charAt(i) != ' ' && word.charAt(i) != '\n' && word.charAt(i) != '\t' && word.charAt(i) != '\r') {
+                        break;
+                    }
+                }
+                word = word.substring(i);
+                if (word.length() == 0) {
+                    continue;
+                }
+
+                //System.out.println(now+"	"+word.length());
+                //System.out.println("$$$$$"+word+"$$$$$$");
+
+                first = word.charAt(0);
+                if (first == '_' || Character.isLetter(first)) { //æ ‡è¯†ç¬¦
+                    getIdentifier();
+                } else if (Character.isDigit(first)) {//æ•´æ•°,æµ®ç‚¹æ•°
+                    getIntOrFloat();
+                } else if (first == '\'') { //å­—ç¬¦
+                    getChar();
+                } else if (first == '"') { //å­—ç¬¦ä¸²
+                    getString();
+                } else if (type.get(Character.toString(first)) != null) { //åˆ†ç•Œç¬¦,è¿ç®—ç¬¦,æ³¨é‡Š
+                    getSeparatorOrOperatorOrAnnotation();
+                } else {
+                    throw new Exception(word + " ä¸å¯è¯†åˆ«\n");
+                }
+            }
+            in.close();
+            out.close();
+            System.out.println("è¯æ³•åˆ†æå®Œæˆ");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                in.close();
+                out.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+
+    private static void getIdentifier() throws Exception { //æ ‡è¯†ç¬¦æˆ–å…³é”®å­—åˆ¤æ–­
+        if (Character.isDigit(now) || now == '_' || Character.isLetter(now)) {
+            return; //ç»§ç»­è¯»å–ä¸‹ä¸€ä¸ªå­—ç¬¦
+        } else if (type.get(Character.toString(now)) != null || now == ' ' || now == '\n' || now == '\r' || now == '\t') {
+            String temp = word.substring(0, word.length() - 1);
+            Integer value = type.get(temp);
+            if (value != null) { //å…³é”®å­—
+                try {
+                    out.write(temp + "\t<" + temp + " : " + value + ">	" + lineNum + "\n");
+                    word = "" + now;
+                } catch (IOException e) {
+                    e.getStackTrace();
+                }
+            } else { //æ ‡è¯†ç¬¦
+                try {
+                    out.write(temp + "\t<" + "æ ‡è¯†ç¬¦" + " : " + type.get("æ ‡è¯†ç¬¦") + ">	" + lineNum + "\n");
+                    word = "" + now;
+                } catch (IOException e) {
+                    e.getStackTrace();
+                }
+            }
+        } else {
+            throw new Exception(word + "æ ‡è¯†ç¬¦é”™è¯¯");
+        }
+    }
+
+
+    private static void getIntOrFloat() throws Exception { //æ•´æ•°æˆ–æµ®ç‚¹æ•°
+        if (Character.isDigit(now) || now == 'e' || now == '.' || now == 'E') {//è¿™é‡Œé»˜è®¤äº†5.è¿™ç§æµ®ç‚¹æ•°å†™æ³•æ˜¯æ­£ç¡®çš„,.5è¿™ç§æ˜¯é”™è¯¯çš„
+            return;
+        } else if (type.get(Character.toString(now)) != null || now == ' ' || now == '\n' || now == '\r' || now == 'f' || now == 'F' || now == 'l' || now == 'L') {
+            if (word.indexOf(".") == -1 && word.indexOf("f") == -1 && word.indexOf("F") == -1) {//æ•´æ•°
+                String temp = word.substring(0, word.length() - 1);
+                try {
+                    out.write(temp + "\t<" + "æ•´æ•°" + " : " + type.get("æ•´æ•°") + ">	" + lineNum + "\n");
+                    word = "" + now;
+                } catch (IOException e) {
+                    e.getStackTrace();
+                }
+            } else { //æµ®ç‚¹æ•°
+                if (word.charAt(0) != 'e' && word.charAt(word.length() - 1) != 'e' && word.charAt(0) != 'E' && word.charAt(word.length() - 1) != 'E') {//åˆ¤æ–­æ˜¯å¦æœ‰e,Eåœ¨ä¸¤ç«¯çš„é”™è¯¯å†™æ³•
+                    if (now == 'f' || now == 'F') {
+                        try {
+                            out.write(word + "\t<" + word + " : " + type.get("æµ®ç‚¹æ•°") + ">	" + lineNum + "\n");
+                            word = "";
+                        } catch (IOException e) {
+                            e.getStackTrace();
+                        }
+                    } else {
+                        String temp = word.substring(0, word.length() - 1);
+                        try {
+                            out.write(temp + "\t<" + word + " : " + type.get("æµ®ç‚¹æ•°") + ">	 " + lineNum + "\n");
+                            word = "" + now;
+                        } catch (IOException e) {
+                            e.getStackTrace();
+                        }
+                    }
+                }
+            }
+        } else {
+            throw new Exception(word + "æ•´æ•°æˆ–æµ®ç‚¹æ•°é”™è¯¯");
+        }
+    }
+
+    private static void getChar() throws Exception { //å­—ç¬¦
+        if (now == '\'') {//å•ä¸ªå­—ç¬¦type.get(Character.toString(now))!=null || now==' '||now=='\n'||now=='\r'
+            if (word.length() == 3) {
+                try {
+                    out.write(word + "\t<" + "å­—ç¬¦" + " : " + type.get("å­—ç¬¦") + ">	" + lineNum + "\n");
+                    word = "";
+                    return;
+                } catch (IOException e) {
+                    e.getStackTrace();
+                }
+            } else if (word.length() == 4) {
+                if (word.charAt(1) != '\\') {
+                    throw new Exception(word + "å­—ç¬¦é”™è¯¯");
+                }
+                try {
+                    out.write(word + "\t<" + "å­—ç¬¦" + " : " + type.get("å­—ç¬¦") + ">	" + lineNum + "\n");
+                    word = "";
+                    return;
+                } catch (IOException e) {
+                    e.getStackTrace();
+                }
+            }
+        }
+        if (word.length() > 4) {
+            throw new Exception(word + "å­—ç¬¦é”™è¯¯");
+        }
+    }
+
+    private static void getString() {//å­—ç¬¦ä¸²
+        if (now == '"' && word.length() > 1) {
+            try {
+                out.write(word + "\t<" + "å­—ç¬¦ä¸²" + " : " + type.get("å­—ç¬¦ä¸²") + ">	" + lineNum + "\n");
+                word = "";
+            } catch (IOException e) {
+                e.getStackTrace();
+            }
+        }
+    }
+
+    private static void getSeparatorOrOperatorOrAnnotation() throws Exception {//è¿ç®—ç¬¦,åˆ†ç•Œç¬¦,æ³¨é‡Š
+        if ("{}[]();:.?,".indexOf(word.charAt(0)) != -1) { //ä¸å«->çš„åˆ†ç•Œç¬¦,->å’Œè¿ç®—ç¬¦ä¸€èµ·åˆ¤æ–­
+
+            try {
+                out.write(word.charAt(0) + "\t<" + word.charAt(0) + " : " + type.get(Character.toString(word.charAt(0))) + ">	" + lineNum + "\n");
+
+                word = word.substring(1);
+                return;
+            } catch (IOException e) {
+                e.getStackTrace();
+            }
+        } else {
+            if (word.length() < 2) return;
+            Integer value = type.get(word);
+            if (value != null) { //2ä¸ªå­—ç¬¦çš„è¿ç®—ç¬¦
+                try {
+                    out.write(word + "\t<" + word + " : " + value + ">	" + lineNum + "\n");
+                    word = "";
+                } catch (IOException e) {
+                    e.getStackTrace();
+                }
+            } else {
+                String temp2 = word.substring(0, 2);
+                if (temp2.equals("/*")) {//  /**/æ³¨é‡Š
+                    if (word.substring(word.length() - 2, word.length()).equals("*/")) {
+                        word = "";
+						/*å¿½ç•¥æ³¨é‡Š
+						try {
+							out.write(word+"\t<"+"æ³¨é‡Š"+" : "+type.get("æ³¨é‡Š")+">	"+lineNum+"\n");
+							word="";
+						}
+						catch(IOException e){
+							e.getStackTrace();
+						}*/
+                    }
+                } else if (temp2.equals("//")) { // //æ³¨é‡Š
+                    if (now == '\n') {
+                        word = "";
+						/*å¿½ç•¥æ³¨é‡Š
+						try {
+							out.write(word.substring(0,word.length()-1)+"\t<"+"æ³¨é‡Š"+" : "+type.get("æ³¨é‡Š")+">	"+lineNum+"\n");
+							word="";
+						}
+						catch(IOException e){
+							e.getStackTrace();
+						}*/
+                    }
+                } else { //1ä¸ªå­—ç¬¦çš„è¿ç®—ç¬¦
+                    String temp = word.substring(0, word.length() - 1);
+                    try {
+                        out.write(temp + "\t<" + temp + " : " + type.get(temp) + ">	" + lineNum + "\n");
+                        word = "" + now;
+                    } catch (IOException e) {
+                        e.getStackTrace();
+                    }
+                }
+            }
+        }
+    }
 }
